@@ -34,7 +34,7 @@ class debsController extends Controller
         return response()->json($deudas);
     }
 
-        // Para Web
+        // Para Web 2
     public function indexWeb()
     {
         $deudas = ReportDebs::all();
