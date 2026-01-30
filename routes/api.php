@@ -5,4 +5,6 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\Api\debsController;
 
-Route::get('/debs', [debsController::class, 'index']);
+Route::prefix('debs')->group(function () {
+    Route::get('/filtered', [debsController::class, 'filteredData']); // GET /api/debs/filtered
+});

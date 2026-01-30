@@ -3,615 +3,267 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Deudas</title>
-    
-    <!-- Bootstrap 5 CSS -->
+    <title>Deudas - Vista Web</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- DataTables CSS -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
-    
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- Añade SheetJS aquí -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 </head>
 <body>
-    <div class="container-fluid mt-3">
-        <!-- Header -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <h3 class="mb-0">📊 Gestión de Deudas</h3>
-                <p class="text-muted">Administra y consulta las deudas de clientes</p>
+    <div class="container py-4">
+        <h1 class="mb-4">📊 Gestión de Deudas</h1>
+        
+        <!-- Botón de Exportación -->
+        <div class="mb-4">
+            <button class="btn btn-success" onclick="exportExcel()" id="exportBtn">
+                📥 Exportar XLSX
+            </button>
+            <div class="mt-2">
+                <small class="text-muted">Exporta todos los datos a Excel (XLSX)</small>
             </div>
         </div>
         
         <!-- Filtros -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card shadow-sm">
-                    <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold">Buscar por Cliente:</label>
-                                <input type="text" class="form-control" id="filtroNombre" 
-                                       placeholder="Nombre, DNI, email o teléfono">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label fw-bold">Fecha Desde:</label>
-                                <input type="date" class="form-control" id="filtroFechaDesde">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label fw-bold">Fecha Hasta:</label>
-                                <input type="date" class="form-control" id="filtroFechaHasta">
-                            </div>
-                            <div class="col-md-2 d-flex align-items-end gap-2">
-                                <button class="btn btn-primary w-50" onclick="aplicarFiltros()">
-                                    <i class="fas fa-filter"></i> Filtrar
-                                </button>
-                                <button class="btn btn-outline-secondary w-50" onclick="limpiarFiltros()">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
+        <div class="card mb-4">
+            <div class="card-body">
+                <form id="filterForm" class="row g-3">
+                    <!-- Filtros de Fecha para Exportación -->
+                    <div class="col-md-3">
+                        <label class="form-label">Fecha Inicio</label>
+                        <input type="date" id="startDate" class="form-control" 
+                               value="{{ date('Y-m-d', strtotime('-30 days')) }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Fecha Fin</label>
+                        <input type="date" id="endDate" class="form-control" 
+                               value="{{ date('Y-m-d') }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Situación</label>
+                        <select name="situation" class="form-select">
+                            <option value="">Todas</option>
+                            <option value="NOR">NOR</option>
+                            <option value="CPP">CPP</option>
+                            <option value="DEF">DEF</option>
+                            <option value="PER">PER</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-12 mt-3">
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Filtrar Tabla</button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="resetFilters()">Limpiar</button>
                         </div>
                     </div>
-                </div>
+                </form>
             </div>
         </div>
         
         <!-- Tabla -->
-        <div class="row">
-            <div class="col-12">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Lista de Deudas</h5>
-                        <div>
-                            <button class="btn btn-success btn-sm me-2" onclick="exportarExcel()">
-                                <i class="fas fa-file-excel"></i> Excel
-                            </button>
-                            <button class="btn btn-outline-primary btn-sm" onclick="cargarDatos()">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div id="alert-container"></div>
-                        <div class="table-responsive">
-                            <table id="tablaDeudas" class="table table-hover table-striped" style="width:100%">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Cliente</th>
-                                        <th>DNI</th>
-                                        <th>Contacto</th>
-                                        <th>Fecha Suscripción</th>
-                                        <th>Fecha Registro</th>
-                                        <th>Tipo</th>
-                                        <th>Monto</th>
-                                        <th>Días</th>
-                                        <th>Situación</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Los datos se cargan con JavaScript -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+        <div class="card">
+            <div class="card-header d-flex justify-content-between">
+                <h5 class="mb-0">Lista de Deudas</h5>
+                <button class="btn btn-sm btn-primary" onclick="loadData()">Actualizar</button>
             </div>
-        </div>
-        
-        <!-- Resumen -->
-        <div class="row mt-4">
-            <div class="col-md-3 mb-3">
-                <div class="card bg-primary text-white">
-                    <div class="card-body text-center">
-                        <h6 class="card-title">Total Deuda</h6>
-                        <h4 id="totalDeuda" class="card-text">$0.00</h4>
-                    </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="debsTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>DNI</th>
+                                <th>Monto</th>
+                                <th>Días</th>
+                                <th>Situación</th>
+                                <th>Fecha</th>
+                                <th>Tipo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="debsBody">
+                            <!-- Cargado por JS -->
+                        </tbody>
+                    </table>
                 </div>
-            </div>
-            <div class="col-md-3 mb-3">
-                <div class="card bg-info text-white">
-                    <div class="card-body text-center">
-                        <h6 class="card-title">Clientes</h6>
-                        <h4 id="totalClientes" class="card-text">0</h4>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3 mb-3">
-                <div class="card bg-danger text-white">
-                    <div class="card-body text-center">
-                        <h6 class="card-title">Vencidas</h6>
-                        <h4 id="totalVencidas" class="card-text">0</h4>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3 mb-3">
-                <div class="card bg-success text-white">
-                    <div class="card-body text-center">
-                        <h6 class="card-title">Registro Reciente</h6>
-                        <h6 id="fechaReciente" class="card-text">-</h6>
-                    </div>
-                </div>
+                
+                <!-- Paginación -->
+                <nav>
+                    <ul class="pagination justify-content-center" id="pagination"></ul>
+                </nav>
             </div>
         </div>
     </div>
-    
-    <!-- Scripts -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
-    
+
     <script>
-        let tablaDeudas = null;
-        let datosOriginales = [];
+        let currentPage = 1;
+        let currentFilters = {};
         
-        // Configuración de idioma ES
-        const spanishLanguage = {
-            "processing": "Procesando...",
-            "lengthMenu": "Mostrar _MENU_ registros",
-            "zeroRecords": "No se encontraron resultados",
-            "emptyTable": "Ningún dato disponible",
-            "info": "Mostrando _START_ a _END_ de _TOTAL_ registros",
-            "infoEmpty": "Mostrando 0 a 0 de 0 registros",
-            "infoFiltered": "(filtrado de _MAX_ registros totales)",
-            "search": "Buscar:",
-            "paginate": {
-                "first": "Primero",
-                "last": "Último",
-                "next": "Siguiente",
-                "previous": "Anterior"
-            }
-        };
-        
-        $(document).ready(function() {
-            // Configurar fechas por defecto: 20 de enero hasta hoy
-            const hoy = new Date();
-            const fechaInicio = new Date('2024-01-20'); // 20 de enero
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
             
-            // Si la fecha de inicio es mayor que hoy, usar hace 30 días
-            let fechaDesde = fechaInicio;
-            if (fechaInicio > hoy) {
-                fechaDesde = new Date();
-                fechaDesde.setDate(hoy.getDate() - 30);
-            }
-            
-            $('#filtroFechaDesde').val(fechaDesde.toISOString().split('T')[0]);
-            $('#filtroFechaHasta').val(hoy.toISOString().split('T')[0]);
-            
-            // Inicializar DataTable
-            inicializarDataTable();
-            
-            // Cargar datos
-            cargarDatos();
-            
-            // Permitir filtrar con Enter
-            $('#filtroNombre').keypress(function(e) {
-                if(e.which === 13) aplicarFiltros();
+            // Manejar filtros de tabla
+            document.getElementById('filterForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                currentPage = 1;
+                currentFilters = {
+                    min_amount: this.min_amount.value,
+                    situation: this.situation.value
+                };
+                loadData();
             });
         });
         
-        function inicializarDataTable() {
-            tablaDeudas = $('#tablaDeudas').DataTable({
-                language: spanishLanguage,
-                pageLength: 10,
-                lengthMenu: [10, 25, 50, 100],
-                order: [[0, 'desc']]
-            });
+        // Función para exportar a Excel
+        async function exportExcel() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const btn = document.getElementById('exportBtn');
+            
+            if (!startDate || !endDate) {
+                alert('Seleccione ambas fechas para exportar');
+                return;
+            }
+            
+            // Validar que fecha fin sea mayor o igual
+            if (new Date(endDate) < new Date(startDate)) {
+                alert('La fecha fin debe ser mayor o igual a la fecha inicio');
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Generando...';
+            
+            try {
+                // Crear formulario dinámico
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/exportar-excel';
+                
+                const csrf = document.createElement('input');
+                csrf.type = 'hidden';
+                csrf.name = '_token';
+                csrf.value = document.querySelector('meta[name="csrf-token"]').content;
+                
+                const startInput = document.createElement('input');
+                startInput.type = 'hidden';
+                startInput.name = 'start_date';
+                startInput.value = startDate;
+                
+                const endInput = document.createElement('input');
+                endInput.type = 'hidden';
+                endInput.name = 'end_date';
+                endInput.value = endDate;
+                
+                form.appendChild(csrf);
+                form.appendChild(startInput);
+                form.appendChild(endInput);
+                document.body.appendChild(form);
+                
+                // Enviar formulario
+                form.submit();
+                
+                // Restaurar botón después de 3 segundos
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '📥 Exportar XLSX';
+                }, 3000);
+                
+            } catch (error) {
+                console.error('Error al exportar:', error);
+                alert('Error al exportar el archivo');
+                btn.disabled = false;
+                btn.innerHTML = '📥 Exportar XLSX';
+            }
         }
         
-        function cargarDatos() {
-            mostrarAlerta('info', '<i class="fas fa-spinner fa-spin"></i> Cargando datos...', false);
+        function loadData(page = 1) {
+            currentPage = page;
             
-            fetch('/api/debs')
+            // Construir URL con filtros
+            let url = `/api/debs/filtered?page=${page}`;
+            if (currentFilters.min_amount) {
+                url += `&min_amount=${currentFilters.min_amount}`;
+            }
+            if (currentFilters.situation) {
+                url += `&situation=${currentFilters.situation}`;
+            }
+            
+            fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    datosOriginales = data;
-                    actualizarResumen(data);
-                    
-                    if (data.length === 0) {
-                        mostrarAlerta('warning', 'No hay registros de deudas disponibles.');
-                        return;
-                    }
-                    
-                    // Limpiar tabla
-                    tablaDeudas.clear();
-                    
-                    // Agregar datos
-                    data.forEach(cliente => {
-                        // Determinar color según situación
-                        let situacionColor = cliente.situacion === 'Vencido' ? 'danger' : 'success';
-                        
-                        // Formatear fecha de suscripción
-                        let fechaSuscripcion = 'N/A';
-                        if (cliente.fecha_suscripcion_real) {
-                            const fecha = new Date(cliente.fecha_suscripcion_real);
-                            fechaSuscripcion = fecha.toLocaleDateString('es-ES');
-                        }
-                        
-                        // Formatear fecha de creación (registro)
-                        let fechaRegistro = 'N/A';
-                        if (cliente.fecha_creacion) {
-                            const fecha = new Date(cliente.fecha_creacion);
-                            fechaRegistro = fecha.toLocaleDateString('es-ES');
-                        }
-                        
-                        // Determinar color de días
-                        let diasColor = 'success';
-                        let diasTexto = cliente.dias_vencimiento;
-                        if (cliente.dias_vencimiento <= 0) {
-                            diasColor = 'danger';
-                            diasTexto = `<strong>VENCIDO (${Math.abs(cliente.dias_vencimiento)})</strong>`;
-                        } else if (cliente.dias_vencimiento <= 7) {
-                            diasColor = 'warning';
-                        }
-                        
-                        // Agregar fila
-                        tablaDeudas.row.add([
-                            cliente.id,
-                            `<strong>${cliente.nombre_completo || 'Sin nombre'}</strong>`,
-                            cliente.dni || 'N/A',
-                            `<div><small><i class="fas fa-phone text-primary"></i> ${cliente.telefono || 'N/A'}</small></div>
-                             <div><small><i class="fas fa-envelope text-success"></i> ${cliente.email || 'N/A'}</small></div>`,
-                            `<span class="badge bg-secondary">${fechaSuscripcion}</span>`,
-                            `<span class="badge bg-dark">${fechaRegistro}</span>`,
-                            `<span class="badge bg-info">${cliente.tipo_registro || 'N/A'}</span>`,
-                            `<strong class="text-primary">$${parseFloat(cliente.monto_deuda || 0).toFixed(2)}</strong>`,
-                            `<span class="badge bg-${diasColor}">${diasTexto} días</span>`,
-                            `<span class="badge bg-${situacionColor}">${cliente.situacion || 'N/A'}</span>`
-                        ]);
-                    });
-                    
-                    tablaDeudas.draw();
-                    mostrarAlerta('success', `Cargados ${data.length} registros`, true);
+                    updateTable(data.data);
+                    updatePagination(data.pagination);
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    mostrarAlerta('danger', 'Error al cargar los datos');
+                    alert('Error al cargar datos');
                 });
         }
         
-        function aplicarFiltros() {
-            const filtroNombre = $('#filtroNombre').val().toLowerCase().trim();
-            const fechaDesde = $('#filtroFechaDesde').val();
-            const fechaHasta = $('#filtroFechaHasta').val();
-            
-            // Validar fechas
-            if (fechaDesde && fechaHasta && new Date(fechaDesde) > new Date(fechaHasta)) {
-                mostrarAlerta('warning', 'Fecha "Desde" no puede ser mayor que "Hasta"');
-                return;
-            }
-            
-            let datosFiltrados = datosOriginales;
-            
-            // Filtro por nombre
-            if (filtroNombre) {
-                datosFiltrados = datosFiltrados.filter(cliente => {
-                    const nombre = (cliente.nombre_completo || '').toLowerCase();
-                    const dni = (cliente.dni || '').toLowerCase();
-                    const email = (cliente.email || '').toLowerCase();
-                    const telefono = (cliente.telefono || '').toLowerCase();
-                    
-                    return nombre.includes(filtroNombre) || 
-                           dni.includes(filtroNombre) ||
-                           email.includes(filtroNombre) ||
-                           telefono.includes(filtroNombre);
-                });
-            }
-            
-            // Filtro por FECHA DE CREACIÓN (fecha_creacion)
-            if (fechaDesde || fechaHasta) {
-                const desde = fechaDesde ? new Date(fechaDesde) : null;
-                const hasta = fechaHasta ? new Date(fechaHasta) : null;
-                
-                if (desde) desde.setHours(0, 0, 0, 0);
-                if (hasta) hasta.setHours(23, 59, 59, 999);
-                
-                datosFiltrados = datosFiltrados.filter(cliente => {
-                    // Usar fecha_creacion para el filtro
-                    if (!cliente.fecha_creacion) return false;
-                    
-                    const fechaCreacion = new Date(cliente.fecha_creacion);
-                    
-                    if (desde && fechaCreacion < desde) return false;
-                    if (hasta && fechaCreacion > hasta) return false;
-                    
-                    return true;
-                });
-            }
-            
-            // Actualizar tabla
-            actualizarTablaFiltrada(datosFiltrados);
+        function resetFilters() {
+            document.getElementById('filterForm').reset();
+            currentFilters = {};
+            currentPage = 1;
+            loadData();
         }
         
-        function actualizarTablaFiltrada(datosFiltrados) {
-            tablaDeudas.clear();
+        function updateTable(deudas) {
+            const tbody = document.getElementById('debsBody');
+            tbody.innerHTML = '';
             
-            if (datosFiltrados.length === 0) {
-                mostrarAlerta('warning', 'No se encontraron registros con los filtros aplicados.');
-                actualizarResumen([]);
+            if (deudas.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">
+                            No hay registros con los filtros aplicados
+                        </td>
+                    </tr>
+                `;
                 return;
             }
             
-            // Volver a agregar datos filtrados
-            datosFiltrados.forEach(cliente => {
-                let situacionColor = cliente.situacion === 'Vencido' ? 'danger' : 'success';
-                
-                // Formatear fechas
-                let fechaSuscripcion = 'N/A';
-                if (cliente.fecha_suscripcion_real) {
-                    const fecha = new Date(cliente.fecha_suscripcion_real);
-                    fechaSuscripcion = fecha.toLocaleDateString('es-ES');
-                }
-                
-                let fechaRegistro = 'N/A';
-                if (cliente.fecha_creacion) {
-                    const fecha = new Date(cliente.fecha_creacion);
-                    fechaRegistro = fecha.toLocaleDateString('es-ES');
-                }
-                
-                // Determinar color de días
-                let diasColor = 'success';
-                let diasTexto = cliente.dias_vencimiento;
-                if (cliente.dias_vencimiento <= 0) {
-                    diasColor = 'danger';
-                    diasTexto = `<strong>VENCIDO (${Math.abs(cliente.dias_vencimiento)})</strong>`;
-                } else if (cliente.dias_vencimiento <= 7) {
-                    diasColor = 'warning';
-                }
-                
-                tablaDeudas.row.add([
-                    cliente.id,
-                    `<strong>${cliente.nombre_completo || 'Sin nombre'}</strong>`,
-                    cliente.dni || 'N/A',
-                    `<div><small><i class="fas fa-phone text-primary"></i> ${cliente.telefono || 'N/A'}</small></div>
-                     <div><small><i class="fas fa-envelope text-success"></i> ${cliente.email || 'N/A'}</small></div>`,
-                    `<span class="badge bg-secondary">${fechaSuscripcion}</span>`,
-                    `<span class="badge bg-dark">${fechaRegistro}</span>`,
-                    `<span class="badge bg-info">${cliente.tipo_registro || 'N/A'}</span>`,
-                    `<strong class="text-primary">$${parseFloat(cliente.monto_deuda || 0).toFixed(2)}</strong>`,
-                    `<span class="badge bg-${diasColor}">${diasTexto} días</span>`,
-                    `<span class="badge bg-${situacionColor}">${cliente.situacion || 'N/A'}</span>`
-                ]);
+            deudas.forEach(deuda => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${deuda.id}</td>
+                    <td>${deuda.nombre_completo}</td>
+                    <td>${deuda.dni}</td>
+                    <td>$${parseFloat(deuda.monto_deuda).toLocaleString('es-ES', {minimumFractionDigits: 2})}</td>
+                    <td><span class="badge ${deuda.dias_vencimiento > 30 ? 'bg-danger' : 'bg-warning'}">${deuda.dias_vencimiento} días</span></td>
+                    <td><span class="badge bg-secondary">${deuda.situacion}</span></td>
+                    <td>${new Date(deuda.fecha_creacion).toLocaleDateString('es-ES')}</td>
+                    <td>${deuda.tipo_registro || 'N/A'}</td>
+                `;
+                tbody.appendChild(tr);
             });
-            
-            tablaDeudas.draw();
-            actualizarResumen(datosFiltrados);
-            mostrarAlerta('info', `Mostrando ${datosFiltrados.length} de ${datosOriginales.length} registros`, true);
         }
         
-        function limpiarFiltros() {
-            $('#filtroNombre').val('');
+        function updatePagination(pagination) {
+            const ul = document.getElementById('pagination');
+            ul.innerHTML = '';
             
-            // Restablecer a 20 de enero hasta hoy
-            const hoy = new Date();
-            const fechaInicio = new Date('2024-01-20');
+            if (pagination.last_page <= 1) return;
             
-            let fechaDesde = fechaInicio;
-            if (fechaInicio > hoy) {
-                fechaDesde = new Date();
-                fechaDesde.setDate(hoy.getDate() - 30);
+            // Botón anterior
+            if (currentPage > 1) {
+                const li = document.createElement('li');
+                li.className = 'page-item';
+                li.innerHTML = `<a class="page-link" href="#" onclick="loadData(${currentPage - 1})">Anterior</a>`;
+                ul.appendChild(li);
             }
             
-            $('#filtroFechaDesde').val(fechaDesde.toISOString().split('T')[0]);
-            $('#filtroFechaHasta').val(hoy.toISOString().split('T')[0]);
-            
-            actualizarTablaFiltrada(datosOriginales);
-            mostrarAlerta('info', 'Filtros limpiados', true);
-        }
-        
-        function actualizarResumen(data) {
-            if (!data || data.length === 0) {
-                $('#totalDeuda').text('$0.00');
-                $('#totalClientes').text('0');
-                $('#totalVencidas').text('0');
-                $('#fechaReciente').text('-');
-                return;
+            // Números de página
+            for (let i = 1; i <= pagination.last_page; i++) {
+                const li = document.createElement('li');
+                li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                li.innerHTML = `<a class="page-link" href="#" onclick="loadData(${i})">${i}</a>`;
+                ul.appendChild(li);
             }
             
-            // Calcular total deuda
-            const totalDeuda = data.reduce((sum, cliente) => 
-                sum + parseFloat(cliente.monto_deuda || 0), 0);
-            
-            // Contar vencidas
-            const vencidas = data.filter(cliente => 
-                parseInt(cliente.dias_vencimiento || 0) <= 0).length;
-            
-            // Encontrar fecha de registro más reciente
-            let fechaReciente = null;
-            data.forEach(cliente => {
-                if (cliente.fecha_creacion) {
-                    const fecha = new Date(cliente.fecha_creacion);
-                    if (!fechaReciente || fecha > fechaReciente) {
-                        fechaReciente = fecha;
-                    }
-                }
-            });
-            
-            // Actualizar UI
-            $('#totalDeuda').text('$' + totalDeuda.toLocaleString('es-ES', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }));
-            
-            $('#totalClientes').text(data.length);
-            $('#totalVencidas').text(vencidas);
-            
-            if (fechaReciente) {
-                const opciones = { 
-                    day: 'numeric', 
-                    month: 'short',
-                    year: 'numeric'
-                };
-                $('#fechaReciente').text(fechaReciente.toLocaleDateString('es-ES', opciones));
-            } else {
-                $('#fechaReciente').text('-');
-            }
-        }
-        
-
-function exportarExcel() {
-    if (datosOriginales.length === 0) {
-        mostrarAlerta('warning', 'No hay datos para exportar');
-        return;
-    }
-    
-    // Verificar si SheetJS está disponible
-    if (typeof XLSX === 'undefined') {
-        mostrarAlerta('danger', 'Error: La biblioteca SheetJS no está cargada.');
-        return;
-    }
-    
-    // Crear array de datos en formato de COLUMNAS con cabeceras
-    const datosExcel = [];
-    
-    // Primera fila: CABECERAS DE COLUMNAS
-    datosExcel.push([
-        'Identificador del reporte',
-        'Nombre del suscriptor', 
-        'Documento de identidad',
-        'Correo electrónico',
-        'Número de contacto',
-        'Banco o entidad asociada a la deuda',
-        'Préstamo, Tarjeta de crédito u Otra deuda',
-        'Estado del crédito (NOR, CPP, DEF, PER)',
-        'Días de vencimiento',
-        'Entidad financiera o comercial',
-        'Monto de la deuda',
-        'Línea de crédito aprobada (aplica para tarjetas)',
-        'Línea de crédito utilizada (aplica para tarjetas)',
-        'Fecha de creación del reporte',
-        'Estado general del registro'
-    ]);
-    
-    // Agregar los datos de cada cliente como FILAS
-    datosOriginales.forEach(cliente => {
-        // Formatear fecha de registro
-        let fechaRegistro = '';
-        if (cliente.fecha_creacion) {
-            const fecha = new Date();
-            fechaRegistro = fecha.toLocaleDateString('es-ES');
-        }
-        
-        // Determinar tipo de deuda
-        let tipoDeuda = 'Otra deuda';
-        if (cliente.tipo_registro) {
-            const tipo = cliente.tipo_registro.toLowerCase();
-            if (tipo.includes('préstamo') || tipo.includes('prestamo')) tipoDeuda = 'Préstamo';
-            else if (tipo.includes('tarjeta') || tipo.includes('crédito')) tipoDeuda = 'Tarjeta de crédito';
-        }
-        
-        // Mapear situación
-        let situacion = cliente.situacion || '';
-        if (situacion.includes('Normal') || situacion.includes('NOR')) situacion = 'NOR';
-        else if (situacion.includes('CPP')) situacion = 'CPP';
-        else if (situacion.includes('Def') || situacion.includes('DEF')) situacion = 'DEF';
-        else if (situacion.includes('Per') || situacion.includes('PER')) situacion = 'PER';
-        
-        // Determinar estado
-        let estadoGeneral = 'Activo';
-        if (cliente.dias_vencimiento <= 0) estadoGeneral = 'Vencido';
-        else if (cliente.dias_vencimiento <= 7) estadoGeneral = 'Por vencer';
-        
-        // Crear FILA con los datos del cliente
-        datosExcel.push([
-            cliente.id || '',
-            cliente.nombre_completo || '',
-            cliente.dni || '',
-            cliente.email || '',
-            cliente.telefono || '',
-            cliente.entidad || '',
-            tipoDeuda,
-            situacion,
-            cliente.dias_vencimiento || 0,
-            cliente.entidad || '',
-            cliente.monto_deuda || 0,
-            cliente.linea_credito_aprobada || '',
-            cliente.linea_credito_utilizada || '',
-            fechaRegistro,
-            estadoGeneral
-        ]);
-    });
-    
-    // Crear hoja de cálculo con los datos en formato de tabla
-    const ws = XLSX.utils.aoa_to_sheet(datosExcel);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Deudas");
-    
-    // Ajustar anchos de columnas
-    const wscols = [
-        { wch: 8 },   // ID
-        { wch: 25 },  // Nombre Completo
-        { wch: 12 },  // DNI
-        { wch: 25 },  // Email
-        { wch: 15 },  // Teléfono
-        { wch: 20 },  // Compañía
-        { wch: 18 },  // Tipo de deuda
-        { wch: 10 },  // Situación
-        { wch: 8 },   // Atraso
-        { wch: 20 },  // Entidad
-        { wch: 12 },  // Monto total
-        { wch: 12 },  // Línea total
-        { wch: 12 },  // Línea usada
-        { wch: 15 },  // Reporte subido el
-        { wch: 10 }   // Estado
-    ];
-    ws['!cols'] = wscols;
-    
-    // Aplicar formato a los montos (columnas K, L, M - índice 10, 11, 12)
-    const range = XLSX.utils.decode_range(ws['!ref']);
-    for (let R = 1; R <= range.e.r; R++) {
-        // Columna Monto total (columna K, índice 10)
-        const cellMonto = XLSX.utils.encode_cell({ r: R, c: 10 });
-        if (ws[cellMonto] && ws[cellMonto].v) {
-            ws[cellMonto].t = 'n'; // Tipo número
-            ws[cellMonto].z = '#,##0.00'; // Formato con separador de miles
-        }
-        
-        // Columna Línea total (columna L, índice 11)
-        const cellLineaTotal = XLSX.utils.encode_cell({ r: R, c: 11 });
-        if (ws[cellLineaTotal] && ws[cellLineaTotal].v) {
-            ws[cellLineaTotal].t = 'n';
-            ws[cellLineaTotal].z = '#,##0.00';
-        }
-        
-        // Columna Línea usada (columna M, índice 12)
-        const cellLineaUsada = XLSX.utils.encode_cell({ r: R, c: 12 });
-        if (ws[cellLineaUsada] && ws[cellLineaUsada].v) {
-            ws[cellLineaUsada].t = 'n';
-            ws[cellLineaUsada].z = '#,##0.00';
-        }
-    }
-    
-    // Generar archivo
-    XLSX.writeFile(wb, `deudas_formato_${new Date().toISOString().split('T')[0]}.xlsx`);
-    
-    mostrarAlerta('success', `Archivo Excel generado con ${datosOriginales.length} registros`, true);
-}
-        
-        function mostrarAlerta(tipo, mensaje, autoOcultar = true) {
-            const alertContainer = $('#alert-container');
-            alertContainer.empty();
-            
-            const alertId = 'alert-' + Date.now();
-            const alerta = `
-                <div id="${alertId}" class="alert alert-${tipo} alert-dismissible fade show" role="alert">
-                    ${mensaje}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            `;
-            
-            alertContainer.html(alerta);
-            
-            if (autoOcultar) {
-                setTimeout(() => {
-                    $(`#${alertId}`).alert('close');
-                }, 3000);
+            // Botón siguiente
+            if (currentPage < pagination.last_page) {
+                const li = document.createElement('li');
+                li.className = 'page-item';
+                li.innerHTML = `<a class="page-link" href="#" onclick="loadData(${currentPage + 1})">Siguiente</a>`;
+                ul.appendChild(li);
             }
         }
     </script>
